@@ -1,98 +1,106 @@
-import os
-import gzip
-import shutil
-import tkinter as tk
-from tkinter import filedialog, messagebox, ttk
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CSV.GZ to CSV Converter</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <style>
+        body {
+            background-color: #f8f9fa;
+            font-family: Arial, sans-serif;
+        }
+        .container {
+            max-width: 500px;
+            margin-top: 50px;
+            background: white;
+            padding: 20px;
+            border-radius: 10px;
+            box-shadow: 0px 0px 10px rgba(0, 0, 0, 0.1);
+        }
+        .progress {
+            display: none;
+            margin-top: 10px;
+        }
+        .download-btn {
+            display: none;
+            margin-top: 15px;
+        }
+    </style>
+</head>
+<body>
 
-def select_input_files():
-    """Open file dialog to select multiple .csv.gz files"""
-    file_paths = filedialog.askopenfilenames(title="Select .csv.gz files",
-                                             filetypes=[("GZipped CSV Files", "*.csv.gz")])
-    if file_paths:
-        entry_input.delete(0, tk.END)
-        entry_input.insert(0, "; ".join(file_paths))  # Display selected files
-        status_label.config(text=f"{len(file_paths)} files selected")
-
-def select_output_directory():
-    """Open directory dialog to select output folder"""
-    output_dir = filedialog.askdirectory(title="Select output directory")
-    if output_dir:
-        entry_output.delete(0, tk.END)
-        entry_output.insert(0, output_dir)
-        status_label.config(text="Output Directory Selected")
-
-def convert_csv_gz():
-    """Convert multiple .csv.gz files to .csv and display final summary"""
-    input_files = entry_input.get().split("; ")  # Get selected files
-    output_dir = entry_output.get()
-
-    if not input_files or input_files == [""]:
-        messagebox.showerror("Error", "Please select at least one .csv.gz file!")
-        status_label.config(text="Error: No Files Selected")
-        return
-
-    if not output_dir:
-        messagebox.showerror("Error", "Please select an output directory!")
-        status_label.config(text="Error: No Output Directory Selected")
-        return
-
-    progress_popup = tk.Toplevel(root)
-    progress_popup.title("Processing...")
-    progress_popup.geometry("350x150")
-    ttk.Label(progress_popup, text="Converting files, please wait...").pack(pady=10)
-
-    progress_bar = ttk.Progressbar(progress_popup, mode='determinate', maximum=len(input_files))
-    progress_bar.pack(pady=5, padx=20, fill=tk.X)
-
-    success_files = []
-    failed_files = []
-
-    for i, file_path in enumerate(input_files):
-        file_name = os.path.basename(file_path)
-        output_file = os.path.join(output_dir, file_name.replace(".gz", ""))
-
-        try:
-            with gzip.open(file_path, "rb") as f_in:
-                with open(output_file, "wb") as f_out:
-                    shutil.copyfileobj(f_in, f_out)
-            success_files.append(file_name)
-        except Exception:
-            failed_files.append(file_name)
-
-        progress_bar["value"] = i + 1
-        progress_popup.update_idletasks()
-
-    progress_popup.destroy()
-
-    # Show a final summary message at the end
-    summary_message = f"{len(success_files)} files converted successfully."
-    if failed_files:
-        summary_message += f"\n{len(failed_files)} files failed: {', '.join(failed_files)}"
+<div class="container text-center">
+    <h2 class="mb-3">CSV.GZ to CSV Converter</h2>
+    <form id="uploadForm">
+        <input type="file" class="form-control mb-3" name="file" id="fileInput" accept=".gz" required>
+        <button type="submit" class="btn btn-success w-100">Convert</button>
+    </form>
     
-    messagebox.showinfo("Conversion Summary", summary_message)
-    status_label.config(text="Conversion Completed")
+    <div class="progress">
+        <div class="progress-bar progress-bar-striped progress-bar-animated" style="width: 0%" id="progressBar"></div>
+    </div>
 
-# GUI Setup
-root = tk.Tk()
-root.title("CSV.GZ to CSV Converter")
-root.geometry("500x350")
+    <p class="mt-3" id="status"></p>
+    
+    <a id="downloadLink" class="btn btn-primary download-btn" href="" download>Download Converted File</a>
+</div>
 
-# Labels & Entry Fields
-tk.Label(root, text="Select .csv.gz files:").pack(pady=5)
-entry_input = tk.Entry(root, width=60)
-entry_input.pack()
-tk.Button(root, text="Browse", command=select_input_files).pack(pady=2)
+<script>
+    document.getElementById("uploadForm").addEventListener("submit", function(event) {
+        event.preventDefault();
+        const fileInput = document.getElementById("fileInput");
+        if (fileInput.files.length === 0) {
+            alert("Please select a file!");
+            return;
+        }
 
-tk.Label(root, text="Select output directory:").pack(pady=5)
-entry_output = tk.Entry(root, width=60)
-entry_output.pack()
-tk.Button(root, text="Browse", command=select_output_directory).pack(pady=2)
+        let formData = new FormData();
+        formData.append("file", fileInput.files[0]);
 
-# Convert Button
-tk.Button(root, text="Convert", command=convert_csv_gz, bg="green", fg="white").pack(pady=10)
+        let status = document.getElementById("status");
+        let downloadLink = document.getElementById("downloadLink");
+        let progressBar = document.getElementById("progressBar");
+        let progressContainer = document.querySelector(".progress");
 
-# Status Bar
-status_label = tk.Label(root, text="Waiting for user input...", bd=1, relief=tk.SUNKEN, anchor="w")
-status_label.pack(side=tk.BOTTOM, fill=tk.X)
+        status.innerText = "Processing...";
+        progressContainer.style.display = "block";
+        progressBar.style.width = "0%";
+        downloadLink.style.display = "none";
 
-root.mainloop()
+        let interval = setInterval(() => {
+            let width = parseInt(progressBar.style.width);
+            if (width < 90) {
+                progressBar.style.width = (width + 10) + "%";
+            }
+        }, 500);
+
+        fetch("/upload", {
+            method: "POST",
+            body: formData
+        })
+        .then(response => {
+            clearInterval(interval);
+            progressBar.style.width = "100%";
+            if (!response.ok) {
+                throw new Error("Conversion failed.");
+            }
+            return response.blob();
+        })
+        .then(blob => {
+            let url = window.URL.createObjectURL(blob);
+            downloadLink.href = url;
+            downloadLink.style.display = "block";
+            status.innerText = "Conversion complete! Click below to download.";
+        })
+        .catch(error => {
+            clearInterval(interval);
+            progressBar.style.width = "0%";
+            status.innerText = "Error: " + error.message;
+        });
+    });
+</script>
+
+</body>
+</html>
