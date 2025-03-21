@@ -1,0 +1,98 @@
+import os
+import gzip
+import shutil
+import tkinter as tk
+from tkinter import filedialog, messagebox, ttk
+
+def select_input_files():
+    """Open file dialog to select multiple .csv.gz files"""
+    file_paths = filedialog.askopenfilenames(title="Select .csv.gz files",
+                                             filetypes=[("GZipped CSV Files", "*.csv.gz")])
+    if file_paths:
+        entry_input.delete(0, tk.END)
+        entry_input.insert(0, "; ".join(file_paths))  # Display selected files
+        status_label.config(text=f"{len(file_paths)} files selected")
+
+def select_output_directory():
+    """Open directory dialog to select output folder"""
+    output_dir = filedialog.askdirectory(title="Select output directory")
+    if output_dir:
+        entry_output.delete(0, tk.END)
+        entry_output.insert(0, output_dir)
+        status_label.config(text="Output Directory Selected")
+
+def convert_csv_gz():
+    """Convert multiple .csv.gz files to .csv and display final summary"""
+    input_files = entry_input.get().split("; ")  # Get selected files
+    output_dir = entry_output.get()
+
+    if not input_files or input_files == [""]:
+        messagebox.showerror("Error", "Please select at least one .csv.gz file!")
+        status_label.config(text="Error: No Files Selected")
+        return
+
+    if not output_dir:
+        messagebox.showerror("Error", "Please select an output directory!")
+        status_label.config(text="Error: No Output Directory Selected")
+        return
+
+    progress_popup = tk.Toplevel(root)
+    progress_popup.title("Processing...")
+    progress_popup.geometry("350x150")
+    ttk.Label(progress_popup, text="Converting files, please wait...").pack(pady=10)
+
+    progress_bar = ttk.Progressbar(progress_popup, mode='determinate', maximum=len(input_files))
+    progress_bar.pack(pady=5, padx=20, fill=tk.X)
+
+    success_files = []
+    failed_files = []
+
+    for i, file_path in enumerate(input_files):
+        file_name = os.path.basename(file_path)
+        output_file = os.path.join(output_dir, file_name.replace(".gz", ""))
+
+        try:
+            with gzip.open(file_path, "rb") as f_in:
+                with open(output_file, "wb") as f_out:
+                    shutil.copyfileobj(f_in, f_out)
+            success_files.append(file_name)
+        except Exception:
+            failed_files.append(file_name)
+
+        progress_bar["value"] = i + 1
+        progress_popup.update_idletasks()
+
+    progress_popup.destroy()
+
+    # Show a final summary message at the end
+    summary_message = f"{len(success_files)} files converted successfully."
+    if failed_files:
+        summary_message += f"\n{len(failed_files)} files failed: {', '.join(failed_files)}"
+    
+    messagebox.showinfo("Conversion Summary", summary_message)
+    status_label.config(text="Conversion Completed")
+
+# GUI Setup
+root = tk.Tk()
+root.title("CSV.GZ to CSV Converter")
+root.geometry("500x350")
+
+# Labels & Entry Fields
+tk.Label(root, text="Select .csv.gz files:").pack(pady=5)
+entry_input = tk.Entry(root, width=60)
+entry_input.pack()
+tk.Button(root, text="Browse", command=select_input_files).pack(pady=2)
+
+tk.Label(root, text="Select output directory:").pack(pady=5)
+entry_output = tk.Entry(root, width=60)
+entry_output.pack()
+tk.Button(root, text="Browse", command=select_output_directory).pack(pady=2)
+
+# Convert Button
+tk.Button(root, text="Convert", command=convert_csv_gz, bg="green", fg="white").pack(pady=10)
+
+# Status Bar
+status_label = tk.Label(root, text="Waiting for user input...", bd=1, relief=tk.SUNKEN, anchor="w")
+status_label.pack(side=tk.BOTTOM, fill=tk.X)
+
+root.mainloop()
