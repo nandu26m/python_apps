@@ -1,0 +1,79 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CSV.GZ to CSV Converter</title>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css">
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+</head>
+<body class="bg-light">
+    <div class="container mt-5">
+        <h2 class="text-center">CSV.GZ to CSV Converter</h2>
+
+        <div class="card p-4 mt-3">
+            <form id="uploadForm">
+                <label class="form-label">Select .csv.gz files:</label>
+                <input type="file" name="files" id="fileInput" multiple class="form-control" accept=".csv.gz">
+                <button type="submit" class="btn btn-primary mt-3">Convert</button>
+            </form>
+        </div>
+
+        <div class="mt-4">
+            <h4>Conversion Status:</h4>
+            <div id="progressBar" class="progress mt-2" style="display: none;">
+                <div id="progress" class="progress-bar progress-bar-striped progress-bar-animated" role="progressbar" style="width: 0%;">0%</div>
+            </div>
+            <ul id="resultList" class="list-group mt-3"></ul>
+        </div>
+    </div>
+
+    <script>
+        $(document).ready(function() {
+            $("#uploadForm").submit(function(e) {
+                e.preventDefault();
+                let files = $("#fileInput")[0].files;
+                if (files.length === 0) {
+                    alert("Please select at least one .csv.gz file.");
+                    return;
+                }
+
+                let formData = new FormData();
+                for (let i = 0; i < files.length; i++) {
+                    formData.append("files", files[i]);
+                }
+
+                $("#progressBar").show();
+                $("#progress").css("width", "0%").text("0%");
+
+                $.ajax({
+                    url: "/upload",
+                    type: "POST",
+                    data: formData,
+                    contentType: false,
+                    processData: false,
+                    success: function(response) {
+                        $("#resultList").empty();
+                        let successCount = response.success.length;
+                        let failCount = response.failed.length;
+                        let totalCount = successCount + failCount;
+                        
+                        response.success.forEach(file => {
+                            $("#resultList").append(`<li class="list-group-item text-success">✔ ${file} converted - <a href="/download/${file}" class="btn btn-sm btn-success">Download</a></li>`);
+                        });
+
+                        response.failed.forEach(file => {
+                            $("#resultList").append(`<li class="list-group-item text-danger">❌ Failed: ${file}</li>`);
+                        });
+
+                        $("#progress").css("width", "100%").text(`Completed (${successCount}/${totalCount} successful)`);
+                    },
+                    error: function() {
+                        alert("Error uploading files. Please try again.");
+                    }
+                });
+            });
+        });
+    </script>
+</body>
+</html>
